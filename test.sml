@@ -74,10 +74,11 @@ fun most_lenient_type (Wildcard,_) = Anything|
      let
 	 val intm = List.find (fn(cN,xdd,ydd) => cN=s) definedTypes
 	 val inputType =  ((fn (SOME(x,y,z)) => z | NONE => raise Unmatchable) intm);
+	 val dataTypeName =  ((fn (SOME(x,y,z)) => y | NONE => raise Unmatchable) intm);
 	 val pattern_matched  =  matchPatternWithType (p,inputType)
      in     
 	 if(pattern_matched = 1) then  
-		Datatype(s)
+		Datatype(dataTypeName)
 	else
 	    raise Unmatchable
      end
