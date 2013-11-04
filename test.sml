@@ -50,7 +50,8 @@ fun pairWise (a::[],b::[]) = (a,b) :: [] |
 	;
 
 (*Find most lenient Type for a pattern implementation*)
-fun matchPatternWithType (Wildcard,Anything) = 1 |
+fun matchPatternWithType (Wildcard,_) = 1 |
+    matchPatternWithType (Variable(_),_) = 1 |
     matchPatternWithType (UnitP, UnitT) = 1 |
     matchPatternWithType (ConstP(_), IntT) = 1|
     matchPatternWithType (TupleP(p), TupleT(t)) =  
