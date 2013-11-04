@@ -1,51 +1,60 @@
-(* Datatypes *)
-datatype pattern = Wildcard | Variable of string | UnitP | ConstP of int
-| TupleP of pattern list | ConstructorP of string * pattern;
+(* Coursera Programming Languages, Homework 3, Provided Code *)
 
-datatype typ = Anything (* any type of value is okay, the Anons *)
-| UnitT (* type for Unit *)
-| IntT (* type for integers *)
-| TupleT of typ list (* tuple types *)
-| Datatype of string (* some named datatype also called as Namefags/ Tripfags in 4chanese *);
+exception NoAnswer
 
-datatype result = NONE |
-		  SOME of typ
-;
+datatype pattern = Wildcard
+		 | Variable of string
+		 | UnitP
+		 | ConstP of int
+		 | TupleP of pattern list
+		 | ConstructorP of string * pattern
+
+datatype valu = Const of int
+	      | Unit
+	      | Tuple of valu list
+	      | Constructor of string * valu
+
+fun g f1 f2 p =
+    let 
+	val r = g f1 f2 
+    in
+	case p of
+	    Wildcard          => f1 ()
+	  | Variable x        => f2 x
+	  | TupleP ps         => List.foldl (fn (p,i) => (r p) + i) 0 ps
+	  | ConstructorP(_,p) => r p
+	  | _                 => 0
+    end
+
+(**** for the challenge problem only ****)
+
+datatype typ = Anything
+	     | UnitT
+	     | IntT
+	     | TupleT of typ list
+	     | Datatype of string
+
+(**** you can put all your code here ****)
 
 (*Exceptions *)
 exception Unmatchable;
 exception Undefined;
 
-(*Utility functions*)
-fun map (f, []) = []
-| map (f, (a::l)) = (f a)::(map (f, l));
+fun reduce (f, []) = raise Unmatchable |
+    reduce (f, a::z) = foldl f a z;
 
-fun reduce(f, []) = raise Unmatchable |
-    reduce(f, a::[]) = a |
-    reduce(f, a::(b::l)) = reduce(f , f(a,b)::l); 
-
-fun findWithFunction (f,[],a) = raise Unmatchable |
-    findWithFunction (f,b::l,a) = if f(b,a) then b else findWithFunction(f,l,a); 				
-
-fun find ([],a) = raise Unmatchable |
-    find (a::l,b) = if(a=b) then a else find(l,b);
+fun pairWise (a::[],b::[]) = (a,b) :: [] |
+    pairWise([], _) = raise Unmatchable |
+    pairWise(_, []) = raise Unmatchable |
+    pairWise(a::alist, b::blist) = (a,b) :: pairWise(alist,blist)
+	;
 
 (*Find most lenient Type for a pattern implementation*)
 fun matchPatternWithType (Wildcard,Anything) = 1 |
     matchPatternWithType (UnitP, UnitT) = 1 |
     matchPatternWithType (ConstP(_), IntT) = 1|
     matchPatternWithType (TupleP(p), TupleT(t)) =  
-    let
-
-	fun f (a::[],b::[]) = (a,b) :: [] |
-            f([], _) = raise Unmatchable |
-            f(_, []) = raise Unmatchable |
-            f(a::alist, b::blist) = (a,b) :: f(alist,blist)
-	;
-	fun g(a,b) = a * b;
-	in
-        reduce(g, map(matchPatternWithType,f(p,t)) )
-    end
+       reduce((fn (a,b)=>a*b), (map matchPatternWithType (pairWise(p,t))) )
     |matchPatternWithType(ConstructorP(s,p),Datatype(sprime)) = if(s=sprime) then 1 else raise Unmatchable
     |matchPatternWithType(_,_) = raise Unmatchable;
  
@@ -56,18 +65,18 @@ fun most_lenient_type (Wildcard,_) = Anything|
     most_lenient_type (TupleP(patternL),definedTypes) = 
     let 
 	fun f (x) = most_lenient_type (x, definedTypes);
-	val mappingResults = map(f,patternL);
+	val mappingResults = map f patternL;
     in
 	TupleT(mappingResults)
     end|
     most_lenient_type (ConstructorP(s,p),definedTypes) = 
      let
-	 fun f((cN,_,_),c) = (cN = c);
-	 val (cName, tName, inputType) = findWithFunction(f,definedTypes,s);
-	 val pattern_matched  =  matchPatternWithType (p,inputType);
+	 val intm = List.find (fn(cN,xdd,ydd) => cN=s) definedTypes
+	 val inputType =  ((fn (SOME(x,y,z)) => z | NONE => raise Unmatchable) intm);
+	 val pattern_matched  =  matchPatternWithType (p,inputType)
      in     
 	 if(pattern_matched = 1) then  
-		Datatype(cName)
+		Datatype(s)
 	else
 	    raise Unmatchable
      end
@@ -81,30 +90,24 @@ fun combineLenientTypeInternal(Anything,b) = b |
     combineLenientTypeInternal(_) = raise Unmatchable;
 
 
-fun combineLenientType(TupleT(xlist), TupleT(ylist)) = let
+fun combineLenientType (TupleT(xlist),  TupleT(ylist))  = 
+TupleT((map combineLenientType (pairWise(xlist,ylist))))
+|
 
-fun f([], []) = [] |
-    f(a::alist, b::blist) = (a,b) :: f(alist,blist) |
-    f(_,_) = raise Unmatchable;
-
-in
-TupleT(map( combineLenientType, f(xlist,ylist)))
-end |
-
-combineLenientType(a,b) = 
+combineLenientType (a, b)  = 
 let
-val combined =  combineLenientTypeInternal(a,b); 
+val combined =  combineLenientTypeInternal(a, b)  
 in
  combined
 end
-handle Unmatchable => combineLenientTypeInternal(b,a) 
+handle Unmatchable => combineLenientTypeInternal(b, a)  
 ;
 
 (* All in *)
-fun findMostLenientTypeFor(plist,tlist) = let
+fun typecheck_pattern plist tlist  = let
     fun f(p) = most_lenient_type(p,tlist)
     in
-    SOME(reduce(combineLenientType,map(f, plist)))
+    SOME (reduce(combineLenientType,(map (fn (x) => most_lenient_type(x,tlist)) plist)))
     end
     handle Unmatchable => NONE;
 
