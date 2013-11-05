@@ -36,6 +36,7 @@ datatype typ = Anything
 
 (**** you can put all your code here ****)
 
+
 (*Exceptions *)
 exception Unmatchable;
 exception Undefined;
@@ -106,6 +107,11 @@ handle Unmatchable => combineLenientTypeInternal(b, a)
 ;
 
 (* All in *)
+
+fun only_capitals l = (List.filter (fn (s) => (s <> "" andalso Char.isUpper(String.sub(s,0)))) l);
+fun longest_string1 l = (List.foldl (fn (a,b) => if String.size(a) > String.size(b) then a else b) "" l);
+fun longest_string2 l = (List.foldl (fn (a,b) => if String.size(a) >= String.size(b) then a else b) "" l);
+
 fun typecheck_pattern plist tlist  = let
     fun f(p) = most_lenient_type(p,tlist)
     in
